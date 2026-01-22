@@ -340,6 +340,7 @@ export const translations = {
         },
         settings: {
             title: "Settings",
+            save: "Save Settings",
             desc: "Manage your preferences and data.",
             general: {
                 timeoutLabel: "AI Analysis Timeout (Seconds)",
@@ -922,6 +923,7 @@ export const translations = {
         },
         settings: {
             title: "设置",
+            save: "保存设置",
             desc: "管理您的应用偏好和数据。",
             general: {
                 timeoutLabel: "AI 分析超时时间 (秒)",
