@@ -174,6 +174,22 @@ export const translations = {
             selector: {
                 placeholder: "Select Notebook",
                 empty: "No notebooks available",
+            },
+            grammarSummary: {
+                title: "Grammar Summary",
+                description: "Analyze all errors in the notebook and summarize similar grammar points and mistakes",
+                prompt: "Click the button below to generate grammar summary",
+                generateButton: "Generate Summary",
+                generating: "Analyzing errors, please wait...",
+                regenerate: "Regenerate",
+                button: "Grammar Summary",
+                overallSummary: "Overall Summary",
+                grammarPoints: "Grammar Points Analysis",
+                commonMistakes: "Common Mistakes",
+                frequency: "Occurred",
+                times: "times",
+                examples: "Examples",
+                suggestions: "Learning Suggestions",
             }
         },
         detail: {
@@ -740,6 +756,22 @@ export const translations = {
             selector: {
                 placeholder: "选择错题本",
                 empty: "暂无错题本",
+            },
+            grammarSummary: {
+                title: "语法点总结",
+                description: "分析错题本中的所有错题，总结相似相近的语法点和错误点",
+                prompt: "点击下方按钮开始生成语法点总结",
+                generateButton: "生成总结",
+                generating: "正在分析错题，请稍候...",
+                regenerate: "重新生成",
+                button: "语法点总结",
+                overallSummary: "总体总结",
+                grammarPoints: "语法点分析",
+                commonMistakes: "常见错误",
+                frequency: "出现",
+                times: "次",
+                examples: "示例",
+                suggestions: "学习建议",
             }
         },
         detail: {

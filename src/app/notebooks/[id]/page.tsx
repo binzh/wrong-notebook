@@ -4,9 +4,10 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { BackButton } from "@/components/ui/back-button";
-import { Plus, House } from "lucide-react";
+import { Plus, House, BookOpen } from "lucide-react";
 import Link from "next/link";
 import { ErrorList } from "@/components/error-list";
+import { GrammarSummaryDialog } from "@/components/grammar-summary-dialog";
 
 import { Notebook } from "@/types/api";
 import { apiClient } from "@/lib/api-client";
@@ -21,6 +22,7 @@ export default function NotebookDetailPage() {
     const { t } = useLanguage();
     const [notebook, setNotebook] = useState<Notebook | null>(null);
     const [loading, setLoading] = useState(true);
+    const [grammarDialogOpen, setGrammarDialogOpen] = useState(false);
 
     useEffect(() => {
         if (params.id) {
@@ -63,6 +65,18 @@ export default function NotebookDetailPage() {
                         </p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
+                        {/* 语法点总结按钮 - 仅对英语错题本显示 */}
+                        {(notebook.name.includes("英语") || notebook.name.toLowerCase().includes("english")) && (
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setGrammarDialogOpen(true)}
+                                className="hidden sm:flex"
+                            >
+                                <BookOpen className="mr-2 h-4 w-4" />
+                                {t.notebooks?.grammarSummary?.button || "语法点总结"}
+                            </Button>
+                        )}
                         <Link href={`/notebooks/${notebook.id}/add`}>
                             <Button size="sm" className="hidden sm:flex">
                                 <Plus className="mr-2 h-4 w-4" />
@@ -81,6 +95,16 @@ export default function NotebookDetailPage() {
                 </div>
 
                 <ErrorList subjectId={notebook.id} subjectName={notebook.name} />
+
+                {/* 语法点总结对话框 */}
+                {(notebook.name.includes("英语") || notebook.name.toLowerCase().includes("english")) && (
+                    <GrammarSummaryDialog
+                        open={grammarDialogOpen}
+                        onOpenChange={setGrammarDialogOpen}
+                        notebookId={notebook.id}
+                        notebookName={notebook.name}
+                    />
+                )}
             </div>
         </main>
     );

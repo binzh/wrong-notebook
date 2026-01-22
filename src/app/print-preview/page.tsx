@@ -27,10 +27,29 @@ function PrintPreviewContent() {
     const fetchItems = async () => {
         try {
             const params = new URLSearchParams(searchParams.toString());
-            // 打印预览需要所有符合条件的数据，设置较大的 pageSize
+            // 打印预览需要所有符合条件的数据，分页获取所有数据
             params.set("pageSize", String(PRINT_PREVIEW_PAGE_SIZE));
-            const response = await apiClient.get<PaginatedResponse<ErrorItem>>(`/api/error-items/list?${params.toString()}`);
-            setItems(response.items);
+            params.set("page", "1");
+            
+            const allItems: ErrorItem[] = [];
+            let currentPage = 1;
+            let hasMore = true;
+            
+            while (hasMore) {
+                params.set("page", String(currentPage));
+                const response = await apiClient.get<PaginatedResponse<ErrorItem>>(`/api/error-items/list?${params.toString()}`);
+                
+                allItems.push(...response.items);
+                
+                // 如果当前页的数据少于 pageSize，说明已经是最后一页
+                if (response.items.length < PRINT_PREVIEW_PAGE_SIZE || currentPage >= response.totalPages) {
+                    hasMore = false;
+                } else {
+                    currentPage++;
+                }
+            }
+            
+            setItems(allItems);
         } catch (error) {
             console.error(error);
         } finally {
