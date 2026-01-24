@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Search, Filter, CheckCircle, Clock, ChevronDown, Printer, ListChecks, Trash2, X } from "lucide-react";
+import { Search, Filter, CheckCircle, Clock, ChevronDown, Printer, ListChecks, Trash2, X, ArrowUpDown, ArrowUp, ArrowDown, FileQuestion } from "lucide-react";
 import Link from "next/link";
 import { format } from "date-fns";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -26,6 +26,7 @@ import { apiClient } from "@/lib/api-client";
 import { cleanMarkdown } from "@/lib/markdown-utils";
 import { Pagination } from "@/components/ui/pagination";
 import { DEFAULT_PAGE_SIZE } from "@/lib/constants/pagination";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface ErrorListProps {
     subjectId?: string;
@@ -43,9 +44,12 @@ export function ErrorList({ subjectId, subjectName }: ErrorListProps = {}) {
     const [paperLevelFilter, setPaperLevelFilter] = useState<"all" | "a" | "b" | "other">("all");
     const [selectedTag, setSelectedTag] = useState<string | null>(null);
     const [expandedTags, setExpandedTags] = useState<Set<string>>(new Set());
+    // 排序状态
+    const [sortBy, setSortBy] = useState<"createdAt" | "updatedAt" | "masteryLevel">("createdAt");
+    const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
     // 分页状态
     const [page, setPage] = useState(1);
-    const [pageSize] = useState(DEFAULT_PAGE_SIZE);
+    const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
     const [total, setTotal] = useState(0);
     const [totalPages, setTotalPages] = useState(0);
     // 多选模式状态
@@ -161,35 +165,37 @@ export function ErrorList({ subjectId, subjectName }: ErrorListProps = {}) {
         }
     };
 
-    // 追踪筛选条件是否变化（用于判断是否需要重置页码）
-    const prevFiltersRef = useRef({ search, masteryFilter, timeFilter, selectedTag, subjectId, gradeFilter, chapterFilter, paperLevelFilter });
+    // 快速筛选预设
+    const quickFilters = [
+        { 
+            label: t.notebook?.quickFilters?.unmastered || "未掌握", 
+            mastery: "unmastered" as const, 
+            time: "all" as const 
+        },
+        { 
+            label: t.notebook?.quickFilters?.recentWeek || "最近一周", 
+            mastery: "all" as const, 
+            time: "week" as const 
+        },
+        { 
+            label: t.notebook?.quickFilters?.recentMonth || "最近一月", 
+            mastery: "all" as const, 
+            time: "month" as const 
+        },
+        { 
+            label: t.notebook?.quickFilters?.mastered || "已掌握", 
+            mastery: "mastered" as const, 
+            time: "all" as const 
+        },
+    ];
 
-    useEffect(() => {
-        const prevFilters = prevFiltersRef.current;
-        const filtersChanged =
-            prevFilters.search !== search ||
-            prevFilters.masteryFilter !== masteryFilter ||
-            prevFilters.timeFilter !== timeFilter ||
-            prevFilters.selectedTag !== selectedTag ||
-            prevFilters.subjectId !== subjectId ||
-            prevFilters.gradeFilter !== gradeFilter ||
-            prevFilters.chapterFilter !== chapterFilter ||
-            prevFilters.paperLevelFilter !== paperLevelFilter;
+    const applyQuickFilter = (mastery: "all" | "mastered" | "unmastered", time: "all" | "week" | "month") => {
+        setMasteryFilter(mastery);
+        setTimeFilter(time);
+        setPage(1);
+    };
 
-        // 更新 ref
-        prevFiltersRef.current = { search, masteryFilter, timeFilter, selectedTag, subjectId, gradeFilter, chapterFilter, paperLevelFilter };
-
-        if (filtersChanged && page !== 1) {
-            // 筛选条件变化且不在第一页，重置到第一页（会再次触发此 effect）
-            setPage(1);
-            return;
-        }
-
-        // 正常请求数据
-        fetchItems();
-    }, [page, search, masteryFilter, timeFilter, selectedTag, subjectId, gradeFilter, chapterFilter, paperLevelFilter]);
-
-    const fetchItems = async () => {
+    const fetchItems = useCallback(async () => {
         setLoading(true);
         try {
             const params = new URLSearchParams();
@@ -207,6 +213,9 @@ export function ErrorList({ subjectId, subjectName }: ErrorListProps = {}) {
             if (gradeFilter) params.append("gradeSemester", gradeFilter);
             if (chapterFilter) params.append("chapter", chapterFilter); // 章节筛选
             if (paperLevelFilter !== "all") params.append("paperLevel", paperLevelFilter);
+            // 排序参数
+            params.append("sortBy", sortBy);
+            params.append("sortOrder", sortOrder);
             // 分页参数
             params.append("page", page.toString());
             params.append("pageSize", pageSize.toString());
@@ -220,10 +229,74 @@ export function ErrorList({ subjectId, subjectName }: ErrorListProps = {}) {
         } finally {
             setLoading(false);
         }
+    }, [subjectId, search, masteryFilter, timeFilter, selectedTag, gradeFilter, chapterFilter, paperLevelFilter, sortBy, sortOrder, page, pageSize]);
+
+    // 追踪筛选条件是否变化（用于判断是否需要重置页码）
+    const prevFiltersRef = useRef({ search, masteryFilter, timeFilter, selectedTag, subjectId, gradeFilter, chapterFilter, paperLevelFilter, sortBy, sortOrder, pageSize });
+
+    useEffect(() => {
+        const prevFilters = prevFiltersRef.current;
+        const filtersChanged =
+            prevFilters.search !== search ||
+            prevFilters.masteryFilter !== masteryFilter ||
+            prevFilters.timeFilter !== timeFilter ||
+            prevFilters.selectedTag !== selectedTag ||
+            prevFilters.subjectId !== subjectId ||
+            prevFilters.gradeFilter !== gradeFilter ||
+            prevFilters.chapterFilter !== chapterFilter ||
+            prevFilters.paperLevelFilter !== paperLevelFilter ||
+            prevFilters.sortBy !== sortBy ||
+            prevFilters.sortOrder !== sortOrder ||
+            prevFilters.pageSize !== pageSize;
+
+        // 更新 ref
+        prevFiltersRef.current = { search, masteryFilter, timeFilter, selectedTag, subjectId, gradeFilter, chapterFilter, paperLevelFilter, sortBy, sortOrder, pageSize };
+
+        if (filtersChanged && page !== 1 && prevFilters.pageSize === pageSize) {
+            // 筛选条件变化且不在第一页，重置到第一页（会再次触发此 effect）
+            // 但如果是pageSize变化，不需要重置页码
+            setPage(1);
+            return;
+        }
+
+        // 正常请求数据
+        fetchItems();
+    }, [page, search, masteryFilter, timeFilter, selectedTag, subjectId, gradeFilter, chapterFilter, paperLevelFilter, sortBy, sortOrder, pageSize, fetchItems]);
+
+    const getSortLabel = () => {
+        const fieldLabels: Record<string, string> = {
+            createdAt: t.notebook?.sort?.createdAt || "创建时间",
+            updatedAt: t.notebook?.sort?.updatedAt || "更新时间",
+            masteryLevel: t.notebook?.sort?.masteryLevel || "掌握状态",
+        };
+        const orderIcon = sortOrder === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />;
+        return (
+            <span className="flex items-center gap-1">
+                {fieldLabels[sortBy]} {orderIcon}
+            </span>
+        );
     };
 
     return (
         <div className="space-y-6">
+            {/* 快速筛选按钮 */}
+            <div className="flex flex-wrap gap-2">
+                {quickFilters.map((filter, index) => {
+                    const isActive = masteryFilter === filter.mastery && timeFilter === filter.time;
+                    return (
+                        <Button
+                            key={index}
+                            variant={isActive ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => applyQuickFilter(filter.mastery, filter.time)}
+                            className="text-xs"
+                        >
+                            {filter.label}
+                        </Button>
+                    );
+                })}
+            </div>
+
             <div className="flex flex-col sm:flex-row gap-4">
                 <div className="relative w-full sm:flex-1">
                     <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -234,51 +307,99 @@ export function ErrorList({ subjectId, subjectName }: ErrorListProps = {}) {
                         onChange={(e) => setSearch(e.target.value)}
                     />
                 </div>
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="outline">
-                            <Filter className="mr-2 h-4 w-4" />
-                            {t.notebook.filter}
-                            <ChevronDown className="ml-2 h-4 w-4" />
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-48">
-                        <DropdownMenuLabel>{t.filter.masteryStatus || "Mastery Status"}</DropdownMenuLabel>
-                        <DropdownMenuItem onClick={() => setMasteryFilter("all")}>
-                            {masteryFilter === "all" && "✓ "}{t.filter.all || "All"}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => setMasteryFilter("unmastered")}>
-                            {masteryFilter === "unmastered" && "✓ "}{t.filter.review || "To Review"}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => setMasteryFilter("mastered")}>
-                            {masteryFilter === "mastered" && "✓ "}{t.filter.mastered || "Mastered"}
-                        </DropdownMenuItem>
+                <div className="flex gap-2">
+                    {/* 排序选择器 */}
+                    <Select
+                        value={`${sortBy}-${sortOrder}`}
+                        onValueChange={(value) => {
+                            const [field, order] = value.split("-") as [typeof sortBy, typeof sortOrder];
+                            setSortBy(field);
+                            setSortOrder(order);
+                            setPage(1);
+                        }}
+                    >
+                        <SelectTrigger className="w-[140px]">
+                            <div className="flex items-center gap-2">
+                                <ArrowUpDown className="h-4 w-4" />
+                                {getSortLabel()}
+                            </div>
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="createdAt-desc">{t.notebook?.sort?.newest || "最新创建"} ↓</SelectItem>
+                            <SelectItem value="createdAt-asc">{t.notebook?.sort?.oldest || "最早创建"} ↑</SelectItem>
+                            <SelectItem value="updatedAt-desc">{t.notebook?.sort?.recentlyUpdated || "最近更新"} ↓</SelectItem>
+                            <SelectItem value="updatedAt-asc">{t.notebook?.sort?.oldestUpdated || "最早更新"} ↑</SelectItem>
+                            <SelectItem value="masteryLevel-desc">{t.notebook?.sort?.masteredFirst || "已掌握优先"} ↓</SelectItem>
+                            <SelectItem value="masteryLevel-asc">{t.notebook?.sort?.unmasteredFirst || "未掌握优先"} ↑</SelectItem>
+                        </SelectContent>
+                    </Select>
 
-                        <DropdownMenuSeparator />
+                    {/* 每页条数选择器 */}
+                    <Select
+                        value={pageSize.toString()}
+                        onValueChange={(value) => {
+                            setPageSize(parseInt(value, 10));
+                            setPage(1);
+                        }}
+                    >
+                        <SelectTrigger className="w-[100px]">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="12">12 {t.notebook?.itemsPerPage || "条/页"}</SelectItem>
+                            <SelectItem value="18">18 {t.notebook?.itemsPerPage || "条/页"}</SelectItem>
+                            <SelectItem value="24">24 {t.notebook?.itemsPerPage || "条/页"}</SelectItem>
+                            <SelectItem value="36">36 {t.notebook?.itemsPerPage || "条/页"}</SelectItem>
+                            <SelectItem value="48">48 {t.notebook?.itemsPerPage || "条/页"}</SelectItem>
+                        </SelectContent>
+                    </Select>
 
-                        <DropdownMenuLabel>{t.filter.timeRange || "Time Range"}</DropdownMenuLabel>
-                        <DropdownMenuItem onClick={() => setTimeFilter("all")}>
-                            {timeFilter === "all" && "✓ "}{t.filter.allTime || "All Time"}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => setTimeFilter("week")}>
-                            {timeFilter === "week" && "✓ "}{t.filter.lastWeek || "Last Week"}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => setTimeFilter("month")}>
-                            {timeFilter === "month" && "✓ "}{t.filter.lastMonth || "Last Month"}
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
-                <Button variant="outline" onClick={handleExportPrint}>
-                    <Printer className="mr-2 h-4 w-4" />
-                    {t.notebook?.exportPrint || "导出打印"}
-                </Button>
-                <Button
-                    variant={isSelectMode ? "secondary" : "outline"}
-                    onClick={toggleSelectMode}
-                >
-                    <ListChecks className="mr-2 h-4 w-4" />
-                    {isSelectMode ? (t.notebook?.cancelSelect || "取消") : (t.notebook?.selectMode || "多选")}
-                </Button>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="outline">
+                                <Filter className="mr-2 h-4 w-4" />
+                                {t.notebook.filter}
+                                <ChevronDown className="ml-2 h-4 w-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-48">
+                            <DropdownMenuLabel>{t.filter.masteryStatus || "Mastery Status"}</DropdownMenuLabel>
+                            <DropdownMenuItem onClick={() => setMasteryFilter("all")}>
+                                {masteryFilter === "all" && "✓ "}{t.filter.all || "All"}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setMasteryFilter("unmastered")}>
+                                {masteryFilter === "unmastered" && "✓ "}{t.filter.review || "To Review"}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setMasteryFilter("mastered")}>
+                                {masteryFilter === "mastered" && "✓ "}{t.filter.mastered || "Mastered"}
+                            </DropdownMenuItem>
+
+                            <DropdownMenuSeparator />
+
+                            <DropdownMenuLabel>{t.filter.timeRange || "Time Range"}</DropdownMenuLabel>
+                            <DropdownMenuItem onClick={() => setTimeFilter("all")}>
+                                {timeFilter === "all" && "✓ "}{t.filter.allTime || "All Time"}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setTimeFilter("week")}>
+                                {timeFilter === "week" && "✓ "}{t.filter.lastWeek || "Last Week"}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setTimeFilter("month")}>
+                                {timeFilter === "month" && "✓ "}{t.filter.lastMonth || "Last Month"}
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                    <Button variant="outline" onClick={handleExportPrint}>
+                        <Printer className="mr-2 h-4 w-4" />
+                        {t.notebook?.exportPrint || "导出打印"}
+                    </Button>
+                    <Button
+                        variant={isSelectMode ? "secondary" : "outline"}
+                        onClick={toggleSelectMode}
+                    >
+                        <ListChecks className="mr-2 h-4 w-4" />
+                        {isSelectMode ? (t.notebook?.cancelSelect || "取消") : (t.notebook?.selectMode || "多选")}
+                    </Button>
+                </div>
             </div>
 
             {/* Advanced Filters Row */}
@@ -335,8 +456,50 @@ export function ErrorList({ subjectId, subjectName }: ErrorListProps = {}) {
                 </div>
             )}
 
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {filteredItems.map((item) => {
+            {loading ? (
+                <div className="flex flex-col items-center justify-center py-16 space-y-4">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+                    <p className="text-muted-foreground">{t.common.loading || "Loading..."}</p>
+                </div>
+            ) : filteredItems.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 px-4 space-y-6 bg-card/50 rounded-xl border-2 border-dashed">
+                    <div className="p-4 bg-muted rounded-full">
+                        <FileQuestion className="h-12 w-12 text-muted-foreground" />
+                    </div>
+                    <div className="text-center space-y-2">
+                        <h3 className="text-lg font-semibold">
+                            {search || masteryFilter !== "all" || timeFilter !== "all" || selectedTag || gradeFilter || chapterFilter || paperLevelFilter !== "all"
+                                ? (t.notebook?.noResults || "没有找到匹配的错题")
+                                : (t.notebook?.empty || "还没有错题")}
+                        </h3>
+                        <p className="text-sm text-muted-foreground max-w-md">
+                            {search || masteryFilter !== "all" || timeFilter !== "all" || selectedTag || gradeFilter || chapterFilter || paperLevelFilter !== "all"
+                                ? (t.notebook?.noResultsHint || "尝试调整筛选条件或搜索关键词")
+                                : (t.notebook?.emptyHint || "点击上方「添加错题」按钮开始记录你的错题吧！")}
+                        </p>
+                    </div>
+                    {(search || masteryFilter !== "all" || timeFilter !== "all" || selectedTag || gradeFilter || chapterFilter || paperLevelFilter !== "all") && (
+                        <Button
+                            variant="outline"
+                            onClick={() => {
+                                setSearch("");
+                                setMasteryFilter("all");
+                                setTimeFilter("all");
+                                setSelectedTag(null);
+                                setGradeFilter("");
+                                setChapterFilter("");
+                                setPaperLevelFilter("all");
+                                setPage(1);
+                            }}
+                        >
+                            <X className="mr-2 h-4 w-4" />
+                            {t.notebook?.clearFilters || "清除所有筛选"}
+                        </Button>
+                    )}
+                </div>
+            ) : (
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {filteredItems.map((item) => {
                     // 优先使用 tags 关联，回退到 knowledgePoints
                     let tags: string[] = [];
                     if ((item as any).tags && (item as any).tags.length > 0) {
@@ -434,7 +597,8 @@ export function ErrorList({ subjectId, subjectName }: ErrorListProps = {}) {
                         </div>
                     );
                 })}
-            </div>
+                </div>
+            )}
 
             {/* 分页器 */}
             <Pagination

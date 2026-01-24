@@ -181,26 +181,33 @@ export function UploadZone({ onImageSelect, isAnalyzing }: UploadZoneProps) {
         <div className="space-y-4">
             <Card
                 {...getRootProps()}
-                className={`border-2 border-dashed cursor-pointer transition-colors hover:border-primary/50 ${isDragActive ? "border-primary bg-primary/5" : "border-muted-foreground/25"
-                    }`}
+                className={`border-2 border-dashed cursor-pointer transition-all duration-300 transform hover:scale-[1.01] ${
+                    isDragActive 
+                        ? "border-primary bg-primary/10 shadow-lg scale-[1.02]" 
+                        : "border-muted-foreground/30 hover:border-primary/50 hover:bg-muted/30 shadow-md hover:shadow-lg"
+                }`}
             >
-                <CardContent className="flex flex-col items-center justify-center py-12 space-y-4 text-center min-h-[300px]">
+                <CardContent className="flex flex-col items-center justify-center py-16 md:py-20 space-y-6 text-center min-h-[320px] md:min-h-[360px]">
                     <input {...getInputProps()} />
-                    <div className="p-4 bg-muted rounded-full">
+                    <div className={`p-5 bg-gradient-to-br from-primary/10 to-primary/5 rounded-2xl transition-all duration-300 ${
+                        isDragActive ? "scale-110" : ""
+                    }`}>
                         {isAnalyzing ? (
-                            <Loader2 className="h-10 w-10 text-primary animate-spin" />
+                            <Loader2 className="h-12 w-12 text-primary animate-spin" />
                         ) : (
-                            <UploadCloud className="h-10 w-10 text-muted-foreground" />
+                            <UploadCloud className={`h-12 w-12 text-primary transition-transform duration-300 ${
+                                isDragActive ? "scale-110" : ""
+                            }`} />
                         )}
                     </div>
-                    <div className="space-y-1">
-                        <h3 className="font-semibold text-lg">
+                    <div className="space-y-2 max-w-md">
+                        <h3 className="font-bold text-xl md:text-2xl">
                             {isAnalyzing ? t.app.analyzing : t.upload.analyze}
                         </h3>
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-sm md:text-base text-muted-foreground">
                             {isAnalyzing ? t.app.analyzing : t.app.dragDrop}
                         </p>
-                        <p className="text-xs text-muted-foreground mt-2">
+                        <p className="text-xs text-muted-foreground mt-3 pt-3 border-t border-border/50">
                             {t.upload.support}
                         </p>
                     </div>
@@ -208,12 +215,12 @@ export function UploadZone({ onImageSelect, isAnalyzing }: UploadZoneProps) {
             </Card>
             {/* 屏幕截图按钮 - 只在客户端渲染 */}
             {isScreenshotSupported() && (
-                <div className="flex flex-col items-center gap-2">
+                <div className="flex flex-col items-center gap-3">
                     <Button
                         variant="outline"
                         onClick={handleScreenshot}
                         disabled={isAnalyzing || isScreenshotting}
-                        className="flex items-center gap-2"
+                        className="flex items-center gap-2 shadow-sm hover:shadow-md transition-all duration-300 border-2 hover:border-primary/60 hover:bg-primary/5 transform hover:scale-105 active:scale-95"
                     >
                         {isScreenshotting ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
@@ -222,7 +229,7 @@ export function UploadZone({ onImageSelect, isAnalyzing }: UploadZoneProps) {
                         )}
                         {isScreenshotting ? t.common.pleaseWait : t.upload.screenshot}
                     </Button>
-                    <p className="text-xs text-muted-foreground text-center">
+                    <p className="text-xs text-muted-foreground text-center max-w-sm">
                         {t.upload.screenshotDesc}
                     </p>
                 </div>

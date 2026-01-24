@@ -90,6 +90,7 @@ model ErrorItem {
   
   // AI Analysis
   questionText     String? // Parsed question
+  wrongAnswer      String? // User's wrong answer/attempt
   answerText       String? // AI provided answer
   analysis         String? // AI analysis/explanation
   knowledgePoints  String? // [DEPRECATED] JSON string - kept for migration only

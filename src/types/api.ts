@@ -53,6 +53,7 @@ export interface ErrorItem {
     originalImageUrl: string;
     ocrText?: string | null;
     questionText?: string | null;
+    wrongAnswer?: string | null;
     answerText?: string | null;
     analysis?: string | null;
     knowledgePoints?: string | null;

@@ -17,6 +17,8 @@ export async function GET(req: Request) {
     const mastery = searchParams.get("mastery");
     const timeRange = searchParams.get("timeRange");
     const tag = searchParams.get("tag");
+    const sortBy = searchParams.get("sortBy") || "createdAt"; // 排序字段：createdAt, updatedAt, masteryLevel
+    const sortOrder = searchParams.get("sortOrder") || "desc"; // 排序方向：asc, desc
 
     // 分页参数
     const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
@@ -145,10 +147,19 @@ export async function GET(req: Request) {
             where: whereClause,
         });
 
+        // 构建排序条件
+        const orderBy: any = {};
+        if (sortBy === "createdAt" || sortBy === "updatedAt" || sortBy === "masteryLevel") {
+            orderBy[sortBy] = sortOrder === "asc" ? "asc" : "desc";
+        } else {
+            // 默认按创建时间降序
+            orderBy.createdAt = "desc";
+        }
+
         // 分页查询
         const errorItems = await prisma.errorItem.findMany({
             where: whereClause,
-            orderBy: { createdAt: "desc" },
+            orderBy,
             include: {
                 subject: true,
                 tags: true,

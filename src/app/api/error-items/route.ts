@@ -19,6 +19,7 @@ export async function POST(req: Request) {
         const body = await req.json();
         const {
             questionText,
+            wrongAnswer,
             answerText,
             analysis,
             knowledgePoints,
@@ -156,6 +157,7 @@ export async function POST(req: Request) {
                     subjectId: subjectId || undefined,
                     originalImageUrl,
                     questionText,
+                    wrongAnswer,
                     answerText,
                     analysis,
                     knowledgePoints: JSON.stringify(tagNames),

@@ -25,6 +25,7 @@ interface KnowledgeTag {
 interface ErrorItemDetail {
     id: string;
     questionText: string;
+    wrongAnswer?: string | null;
     answerText: string;
     analysis: string;
     knowledgePoints: string; // 保留兼容旧数据
@@ -80,7 +81,7 @@ export default function ErrorDetailPage() {
         } catch (error) {
             console.error(error);
             alert(t.common?.messages?.loadFailed || 'Failed to load item');
-            router.push("/notebooks");
+            router.push("/");
         } finally {
             setLoading(false);
         }
@@ -113,7 +114,7 @@ export default function ErrorDetailPage() {
             if (item.subjectId) {
                 router.push(`/notebooks/${item.subjectId}`);
             } else {
-                router.push('/notebooks');
+                router.push('/');
             }
         } catch (error) {
             console.error(error);
@@ -205,6 +206,9 @@ export default function ErrorDetailPage() {
     const [isEditingQuestion, setIsEditingQuestion] = useState(false);
     const [questionInput, setQuestionInput] = useState("");
 
+    const [isEditingWrongAnswer, setIsEditingWrongAnswer] = useState(false);
+    const [wrongAnswerInput, setWrongAnswerInput] = useState("");
+
     const [isEditingAnswer, setIsEditingAnswer] = useState(false);
     const [answerInput, setAnswerInput] = useState("");
 
@@ -234,6 +238,31 @@ export default function ErrorDetailPage() {
     const cancelEditingQuestion = () => {
         setIsEditingQuestion(false);
         setQuestionInput("");
+    };
+
+    // --- Wrong Answer Handlers ---
+    const startEditingWrongAnswer = () => {
+        if (item) {
+            setWrongAnswerInput(item.wrongAnswer || "");
+            setIsEditingWrongAnswer(true);
+        }
+    };
+
+    const saveWrongAnswerHandler = async () => {
+        try {
+            await apiClient.put(`/api/error-items/${item?.id}`, { wrongAnswer: wrongAnswerInput });
+            setIsEditingWrongAnswer(false);
+            if (item) setItem({ ...item, wrongAnswer: wrongAnswerInput });
+            alert(t.common?.messages?.saveSuccess || 'Saved successfully');
+        } catch (error) {
+            console.error(error);
+            alert(t.common?.messages?.saveFailed || 'Save failed');
+        }
+    };
+
+    const cancelEditingWrongAnswer = () => {
+        setIsEditingWrongAnswer(false);
+        setWrongAnswerInput("");
     };
 
     // --- Answer Handlers ---
@@ -367,8 +396,9 @@ export default function ErrorDetailPage() {
                 </div>
 
                 <div className="grid gap-6 lg:grid-cols-2">
-                    {/* Left Column: Question & Image */}
+                    {/* Left Column: Question, Wrong Answer, Correct Answer */}
                     <div className="space-y-6 min-w-0">
+                        {/* 题目 */}
                         <Card>
                             <CardHeader>
                                 <div className="flex justify-between items-center">
@@ -411,7 +441,7 @@ export default function ErrorDetailPage() {
                                         <Textarea
                                             value={questionInput}
                                             onChange={(e) => setQuestionInput(e.target.value)}
-                                            placeholder="Enter question text..." // Consider localizing later
+                                            placeholder="Enter question text..."
                                             rows={8}
                                             className="w-full font-mono text-sm"
                                         />
@@ -431,7 +461,7 @@ export default function ErrorDetailPage() {
                                 )}
 
                                 {/* 知识点标签 */}
-                                <div className="space-y-2">
+                                <div className="space-y-2 pt-4 border-t">
                                     <div className="flex justify-between items-center">
                                         <h4 className="text-sm font-semibold">{t.editor?.tags || 'Knowledge Tags'}</h4>
                                         {!isEditingTags && (
@@ -471,11 +501,17 @@ export default function ErrorDetailPage() {
                                         </div>
                                     ) : (
                                         <div className="flex flex-wrap gap-2">
-                                            {tags.map((tag) => (
-                                                <Badge key={tag} variant="secondary">
-                                                    {tag}
-                                                </Badge>
-                                            ))}
+                                            {tags.length > 0 ? (
+                                                tags.map((tag) => (
+                                                    <Badge key={tag} variant="secondary">
+                                                        {tag}
+                                                    </Badge>
+                                                ))
+                                            ) : (
+                                                <p className="text-sm text-muted-foreground italic">
+                                                    {t.detail?.noTags || "暂无标签"}
+                                                </p>
+                                            )}
                                         </div>
                                     )}
                                 </div>
@@ -559,6 +595,104 @@ export default function ErrorDetailPage() {
                             </CardContent>
                         </Card>
 
+                        {/* 错误解答 */}
+                        <Card className="border-orange-200">
+                            <CardHeader>
+                                <div className="flex justify-between items-center">
+                                    <CardTitle className="text-orange-700">{t.detail?.wrongAnswer || "错误解答"}</CardTitle>
+                                    {!isEditingWrongAnswer && (
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={startEditingWrongAnswer}
+                                        >
+                                            <Edit className="h-4 w-4 mr-1" />
+                                            {t.common?.edit || 'Edit'}
+                                        </Button>
+                                    )}
+                                </div>
+                            </CardHeader>
+                            <CardContent>
+                                {isEditingWrongAnswer ? (
+                                    <div className="space-y-3">
+                                        <Textarea
+                                            value={wrongAnswerInput}
+                                            onChange={(e) => setWrongAnswerInput(e.target.value)}
+                                            placeholder={t.detail?.wrongAnswerPlaceholder || "输入你的错误解答..."}
+                                            rows={5}
+                                            className="w-full font-mono text-sm"
+                                        />
+                                        <div className="flex gap-2">
+                                            <Button size="sm" onClick={saveWrongAnswerHandler}>
+                                                <Save className="h-4 w-4 mr-1" />
+                                                {t.common?.save || 'Save'}
+                                            </Button>
+                                            <Button size="sm" variant="outline" onClick={cancelEditingWrongAnswer}>
+                                                <X className="h-4 w-4 mr-1" />
+                                                {t.common?.cancel || 'Cancel'}
+                                            </Button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="text-muted-foreground">
+                                        {item.wrongAnswer ? (
+                                            <MarkdownRenderer content={item.wrongAnswer} />
+                                        ) : (
+                                            <p className="italic">{t.detail?.noWrongAnswer || "暂无错误解答"}</p>
+                                        )}
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+
+                        {/* 正确解答 */}
+                        <Card className="border-primary/20">
+                            <CardHeader>
+                                <div className="flex justify-between items-center">
+                                    <CardTitle className="text-primary">{t.detail.correctAnswer}</CardTitle>
+                                    {!isEditingAnswer && (
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={startEditingAnswer}
+                                        >
+                                            <Edit className="h-4 w-4 mr-1" />
+                                            {t.common?.edit || 'Edit'}
+                                        </Button>
+                                    )}
+                                </div>
+                            </CardHeader>
+                            <CardContent>
+                                {isEditingAnswer ? (
+                                    <div className="space-y-3">
+                                        <Textarea
+                                            value={answerInput}
+                                            onChange={(e) => setAnswerInput(e.target.value)}
+                                            placeholder="Enter answer..."
+                                            rows={5}
+                                            className="w-full font-mono text-sm"
+                                        />
+                                        <div className="flex gap-2">
+                                            <Button size="sm" onClick={saveAnswerHandler}>
+                                                <Save className="h-4 w-4 mr-1" />
+                                                {t.common?.save || 'Save'}
+                                            </Button>
+                                            <Button size="sm" variant="outline" onClick={cancelEditingAnswer}>
+                                                <X className="h-4 w-4 mr-1" />
+                                                {t.common?.cancel || 'Cancel'}
+                                            </Button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <MarkdownRenderer content={item.answerText} className="font-semibold" />
+                                )}
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    {/* Right Column: Notes, Analysis */}
+                    <div className="space-y-6 min-w-0">
+                        {/* 用户笔记 */}
                         <Card>
                             <CardHeader>
                                 <div className="flex justify-between items-center">
@@ -616,53 +750,8 @@ export default function ErrorDetailPage() {
                                 )}
                             </CardContent>
                         </Card>
-                    </div>
 
-                    {/* Right Column: Analysis & Answer */}
-                    <div className="space-y-6 min-w-0">
-                        <Card className="border-primary/20">
-                            <CardHeader>
-                                <div className="flex justify-between items-center">
-                                    <CardTitle className="text-primary">{t.detail.correctAnswer}</CardTitle>
-                                    {!isEditingAnswer && (
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={startEditingAnswer}
-                                        >
-                                            <Edit className="h-4 w-4 mr-1" />
-                                            {t.common?.edit || 'Edit'}
-                                        </Button>
-                                    )}
-                                </div>
-                            </CardHeader>
-                            <CardContent>
-                                {isEditingAnswer ? (
-                                    <div className="space-y-3">
-                                        <Textarea
-                                            value={answerInput}
-                                            onChange={(e) => setAnswerInput(e.target.value)}
-                                            placeholder="Enter answer..."
-                                            rows={5}
-                                            className="w-full font-mono text-sm"
-                                        />
-                                        <div className="flex gap-2">
-                                            <Button size="sm" onClick={saveAnswerHandler}>
-                                                <Save className="h-4 w-4 mr-1" />
-                                                {t.common?.save || 'Save'}
-                                            </Button>
-                                            <Button size="sm" variant="outline" onClick={cancelEditingAnswer}>
-                                                <X className="h-4 w-4 mr-1" />
-                                                {t.common?.cancel || 'Cancel'}
-                                            </Button>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <MarkdownRenderer content={item.answerText} className="font-semibold" />
-                                )}
-                            </CardContent>
-                        </Card>
-
+                        {/* 解析 */}
                         <Card>
                             <CardHeader>
                                 <div className="flex justify-between items-center">
@@ -705,8 +794,6 @@ export default function ErrorDetailPage() {
                                 )}
                             </CardContent>
                         </Card>
-                        {/* 操作按钮 */}
-
                     </div>
                 </div>
             </div>

@@ -82,7 +82,7 @@ export async function PUT(
         }
 
         const body = await req.json();
-        const { knowledgePoints, gradeSemester, paperLevel, questionText, answerText, analysis } = body;
+        const { knowledgePoints, gradeSemester, paperLevel, questionText, wrongAnswer, answerText, analysis } = body;
 
         const errorItem = await prisma.errorItem.findUnique({
             where: { id },
@@ -102,6 +102,7 @@ export async function PUT(
         if (gradeSemester !== undefined) updateData.gradeSemester = gradeSemester;
         if (paperLevel !== undefined) updateData.paperLevel = paperLevel;
         if (questionText !== undefined) updateData.questionText = questionText;
+        if (wrongAnswer !== undefined) updateData.wrongAnswer = wrongAnswer;
         if (answerText !== undefined) updateData.answerText = answerText;
         if (analysis !== undefined) updateData.analysis = analysis;
 
